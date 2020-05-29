@@ -25,11 +25,19 @@ namespace power {
 namespace impl {
 namespace rockchip {
 
+using aidl::android::hardware::power::Boost;
+
 class Power : public BnPower {
     ndk::ScopedAStatus setMode(Mode type, bool enabled) override;
     ndk::ScopedAStatus isModeSupported(Mode type, bool* _aidl_return) override;
     ndk::ScopedAStatus setBoost(Boost type, int32_t durationMs) override;
     ndk::ScopedAStatus isBoostSupported(Boost type, bool* _aidl_return) override;
+
+    void getSupportedPlatform();
+
+private:
+    int64_t _boost_support_int = -1;
+    int64_t _mode_support_int = -1;
 };
 
 }  // namespace rockchip

@@ -20,6 +20,8 @@ cc_binary {
     vendor: true,
     shared_libs: [
         "libbase",
+        "libcutils",
+        "liblog",
         "libbinder_ndk",
         "android.hardware.power-ndk_platform",
     ],
