@@ -1,17 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd
  */
 
 #include "Power.h"
@@ -22,12 +10,14 @@
 #include <cutils/properties.h>
 #include <string>
 #include <log/log.h>
+#include <dirent.h>
 
+#define LOG_TAG "PowerAIDL"
 
+#define DEV_FREQ_PATH "/sys/class/devfreq"
 #define CPU_CLUST0_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor"
 #define CPU_CLUST1_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_governor"
-
-
+#define DMC_GOV_PATH "/sys/class/devfreq/dmc/governor"
 
 namespace aidl {
 namespace android {
@@ -37,14 +27,31 @@ namespace impl {
 namespace rockchip {
 
 void Power::getSupportedPlatform() {
+    char platform[PROPERTY_VALUE_MAX] = {0};
+    property_get("ro.board.platform", platform, "");
     if (_mode_support_int < 0) {
-        char platform[PROPERTY_VALUE_MAX] = {0};
-        property_get("ro.boot.hardware", platform, "");
-        if (strncmp(platform, "rk3399", PROPERTY_VALUE_MAX) == 0) {
+        //if (strncmp(platform, "rk3399", PROPERTY_VALUE_MAX) == 0) {
             _boost_support_int = 0x003F;
             _mode_support_int = 0x3FFF;
+        //}
+    }
+    if (_gpu_path == "") {
+        std::unique_ptr<DIR, decltype(&closedir)>dir(opendir(DEV_FREQ_PATH), closedir);
+        if (!dir) return;
+        dirent* dp;
+        while ((dp = readdir(dir.get())) != nullptr) {
+            if (dp->d_name[0] == '.') continue;
+            // remove dmc
+            if (dp->d_name[0] == 'd') continue;
+            std::string prefix(DEV_FREQ_PATH);
+            std::string gpu(dp->d_name);
+            _gpu_path += prefix + "/" + gpu;
+            break;
         }
     }
+    ALOGI("[%s] gpu: %s, boost: %llx, mode: %llx",
+          platform, _gpu_path.c_str(),
+          _boost_support_int, _mode_support_int);
 }
 
 static void sysfs_write(const char *path, const char *s) {
@@ -67,41 +74,23 @@ static void sysfs_write(const char *path, const char *s) {
     close(fd);
 }
 
-static void performance_boost(bool on) {
-    ALOGV("RK performance_boost Entered!");
-    sysfs_write(CPU_CLUST0_GOV_PATH, on?"performance":"interactive");
-    sysfs_write(CPU_CLUST1_GOV_PATH, on?"performance":"interactive");
-}
-
-static void powersave(bool on) {
-    ALOGV("RK powersave Entered!");
-    sysfs_write(CPU_CLUST0_GOV_PATH, on?"powersave":"interactive");
-    sysfs_write(CPU_CLUST1_GOV_PATH, on?"powersave":"interactive");
-}
-
-static void interactive() {
-    ALOGV("RK interactive Entered!");
-    sysfs_write(CPU_CLUST0_GOV_PATH, "interactive");
-    sysfs_write(CPU_CLUST1_GOV_PATH, "interactive");
-}
-
 ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
-    LOG(VERBOSE) << "Power setMode: " << static_cast<int32_t>(type) << " to: " << enabled;
+    ALOGD("Power setMode: %d to: %s", static_cast<int32_t>(type), (enabled?"on":"off"));
     switch (type) {
         case Mode::DOUBLE_TAP_TO_WAKE:
         break;
         case Mode::LOW_POWER:
-            powersave(enabled);
+            powerSave(enabled);
         break;
         case Mode::SUSTAINED_PERFORMANCE:
         break;
         case Mode::FIXED_PERFORMANCE:
-            performance_boost(enabled);
+            performanceBoost(enabled);
         break;
         case Mode::VR:
         break;
         case Mode::LAUNCH:
-            performance_boost(enabled);
+            performanceBoost(enabled);
         break;
         case Mode::EXPENSIVE_RENDERING:
         break;
@@ -109,9 +98,10 @@ ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
             if (enabled) interactive();
         break;
         case Mode::DEVICE_IDLE:
-            powersave(enabled);
+            powerSave(enabled);
         break;
         case Mode::DISPLAY_INACTIVE:
+            sysfs_write((_gpu_path + "/governor").c_str(), enabled?"powersave":"simple_ondemand");
         break;
         case Mode::AUDIO_STREAMING_LOW_LATENCY:
         break;
@@ -129,6 +119,21 @@ ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
     return ndk::ScopedAStatus::ok();
 }
 
+ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
+    ALOGD("Power setBoost: %d, duration: %d", static_cast<int32_t>(type), durationMs);
+    switch (type) {
+        // Touch screen
+        case Boost::INTERACTION:
+        case Boost::DISPLAY_UPDATE_IMMINENT:
+        case Boost::ML_ACC:
+        case Boost::AUDIO_LAUNCH:
+        case Boost::CAMERA_LAUNCH:
+        case Boost::CAMERA_SHOT:
+        default:
+        break;
+    }
+    return ndk::ScopedAStatus::ok();
+}
 
 /**
  * _PLACEHOLDER_,           DOUBLE_TAP_TO_WAKE,     LOW_POWER,              SUSTAINED_PERFORMANCE,
@@ -137,7 +142,7 @@ ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
  * CAMERA_STREAMING_SECURE, CAMERA_STREAMING_LOW,   CAMERA_STREAMING_MID,   CAMERA_STREAMING_HIGH
  */
 ndk::ScopedAStatus Power::isModeSupported(Mode type, bool* _aidl_return) {
-    LOG(INFO) << "Power isModeSupported: " << static_cast<int32_t>(type);
+    ALOGD("Power isModeSupported: %d", static_cast<int32_t>(type));
     getSupportedPlatform();
     switch (type) {
         case Mode::DOUBLE_TAP_TO_WAKE:
@@ -192,23 +197,6 @@ ndk::ScopedAStatus Power::isModeSupported(Mode type, bool* _aidl_return) {
     return ndk::ScopedAStatus::ok();
 }
 
-ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
-    LOG(VERBOSE) << "Power setBoost: " << static_cast<int32_t>(type)
-                 << ", duration: " << durationMs;
-    switch (type) {
-        // Touch screen
-        case Boost::INTERACTION:
-        case Boost::DISPLAY_UPDATE_IMMINENT:
-        case Boost::ML_ACC:
-        case Boost::AUDIO_LAUNCH:
-        case Boost::CAMERA_LAUNCH:
-        case Boost::CAMERA_SHOT:
-        default:
-        break;
-    }
-    return ndk::ScopedAStatus::ok();
-}
-
 /**
  * Boost type defined from:
  * hardware/interfaces/power/aidl/android/hardware/power/Boost.aidl
@@ -221,7 +209,7 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
  * ...
  */
 ndk::ScopedAStatus Power::isBoostSupported(Boost type, bool* _aidl_return) {
-    LOG(INFO) << "Power isBoostSupported: " << static_cast<int32_t>(type);
+    ALOGD("Power isBoostSupported: %d", static_cast<int32_t>(type));
     getSupportedPlatform();
     switch (type) {
         // Touch screen
@@ -250,6 +238,28 @@ ndk::ScopedAStatus Power::isBoostSupported(Boost type, bool* _aidl_return) {
         break;
     }
     return ndk::ScopedAStatus::ok();
+}
+
+void Power::performanceBoost(bool on) {
+    ALOGD("RK performance_boost Entered!");
+    sysfs_write(CPU_CLUST0_GOV_PATH, on?"performance":"interactive");
+    sysfs_write(CPU_CLUST1_GOV_PATH, on?"performance":"interactive");
+    sysfs_write((_gpu_path + "/governor").c_str(), on?"performance":"simple_ondemand");
+    sysfs_write(DMC_GOV_PATH, on?"performance":"dmc_ondemand");
+}
+
+void Power::powerSave(bool on) {
+    ALOGD("RK powersave Entered!");
+    sysfs_write(CPU_CLUST0_GOV_PATH, on?"powersave":"interactive");
+    sysfs_write(CPU_CLUST1_GOV_PATH, on?"powersave":"interactive");
+    sysfs_write((_gpu_path + "/governor").c_str(), on?"powersave":"simple_ondemand");
+    sysfs_write(DMC_GOV_PATH, on?"powersave":"dmc_ondemand");
+}
+
+void Power::interactive() {
+    ALOGD("RK interactive Entered!");
+    sysfs_write(CPU_CLUST0_GOV_PATH, "interactive");
+    sysfs_write(CPU_CLUST1_GOV_PATH, "interactive");
 }
 
 }  // namespace rockchip
