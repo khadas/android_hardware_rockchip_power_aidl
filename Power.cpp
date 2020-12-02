@@ -250,10 +250,12 @@ void Power::performanceBoost(bool on) {
 
 void Power::powerSave(bool on) {
     ALOGD("RK powersave Entered!");
+#ifdef ENABLE_POWER_SAVE
     sysfs_write(CPU_CLUST0_GOV_PATH, on?"powersave":"interactive");
     sysfs_write(CPU_CLUST1_GOV_PATH, on?"powersave":"interactive");
     sysfs_write((_gpu_path + "/governor").c_str(), on?"powersave":"simple_ondemand");
     sysfs_write(DMC_GOV_PATH, on?"powersave":"dmc_ondemand");
+#endif
 }
 
 void Power::interactive() {
