@@ -101,7 +101,9 @@ ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
             powerSave(enabled);
         break;
         case Mode::DISPLAY_INACTIVE:
+#ifdef ENABLE_POWER_SAVE
             sysfs_write((_gpu_path + "/governor").c_str(), enabled?"powersave":"simple_ondemand");
+#endif
         break;
         case Mode::AUDIO_STREAMING_LOW_LATENCY:
         break;
