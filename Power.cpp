@@ -75,7 +75,7 @@ static void sysfs_write(const char *path, const char *s) {
 }
 
 ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
-    ALOGD("Power setMode: %d to: %s", static_cast<int32_t>(type), (enabled?"on":"off"));
+    ALOGV("Power setMode: %d to: %s", static_cast<int32_t>(type), (enabled?"on":"off"));
     switch (type) {
         case Mode::DOUBLE_TAP_TO_WAKE:
         break;
@@ -122,7 +122,7 @@ ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
 }
 
 ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
-    ALOGD("Power setBoost: %d, duration: %d", static_cast<int32_t>(type), durationMs);
+    ALOGV("Power setBoost: %d, duration: %d", static_cast<int32_t>(type), durationMs);
     switch (type) {
         // Touch screen
         case Boost::INTERACTION:
@@ -144,7 +144,7 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
  * CAMERA_STREAMING_SECURE, CAMERA_STREAMING_LOW,   CAMERA_STREAMING_MID,   CAMERA_STREAMING_HIGH
  */
 ndk::ScopedAStatus Power::isModeSupported(Mode type, bool* _aidl_return) {
-    ALOGD("Power isModeSupported: %d", static_cast<int32_t>(type));
+    ALOGV("Power isModeSupported: %d", static_cast<int32_t>(type));
     getSupportedPlatform();
     switch (type) {
         case Mode::DOUBLE_TAP_TO_WAKE:
@@ -211,7 +211,7 @@ ndk::ScopedAStatus Power::isModeSupported(Mode type, bool* _aidl_return) {
  * ...
  */
 ndk::ScopedAStatus Power::isBoostSupported(Boost type, bool* _aidl_return) {
-    ALOGD("Power isBoostSupported: %d", static_cast<int32_t>(type));
+    ALOGV("Power isBoostSupported: %d", static_cast<int32_t>(type));
     getSupportedPlatform();
     switch (type) {
         // Touch screen
@@ -243,7 +243,7 @@ ndk::ScopedAStatus Power::isBoostSupported(Boost type, bool* _aidl_return) {
 }
 
 void Power::performanceBoost(bool on) {
-    ALOGD("RK performance_boost Entered!");
+    ALOGV("RK performance_boost Entered!");
     sysfs_write(CPU_CLUST0_GOV_PATH, on?"performance":"interactive");
     sysfs_write(CPU_CLUST1_GOV_PATH, on?"performance":"interactive");
     sysfs_write((_gpu_path + "/governor").c_str(), on?"performance":"simple_ondemand");
@@ -251,7 +251,7 @@ void Power::performanceBoost(bool on) {
 }
 
 void Power::powerSave(bool on) {
-    ALOGD("RK powersave Entered!");
+    ALOGV("RK powersave Entered!");
 #ifdef ENABLE_POWER_SAVE
     sysfs_write(CPU_CLUST0_GOV_PATH, on?"powersave":"interactive");
     sysfs_write(CPU_CLUST1_GOV_PATH, on?"powersave":"interactive");
@@ -261,7 +261,7 @@ void Power::powerSave(bool on) {
 }
 
 void Power::interactive() {
-    ALOGD("RK interactive Entered!");
+    ALOGV("RK interactive Entered!");
     sysfs_write(CPU_CLUST0_GOV_PATH, "interactive");
     sysfs_write(CPU_CLUST1_GOV_PATH, "interactive");
 }
