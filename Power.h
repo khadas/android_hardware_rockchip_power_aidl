@@ -25,6 +25,7 @@ class Power : public BnPower {
 private:
     int64_t _boost_support_int = -1;
     int64_t _mode_support_int = -1;
+    int8_t _boot_complete = -1;
     std::string _gpu_path = "";
     void getSupportedPlatform();
     void performanceBoost(bool on);

@@ -49,9 +49,13 @@ void Power::getSupportedPlatform() {
             break;
         }
     }
-    ALOGI("[%s] gpu: %s, boost: %llx, mode: %llx",
+    if (_boot_complete <= 0) {
+        _boot_complete = property_get_bool("sys.boot_completed", 0);
+    }
+    ALOGV("[%s] gpu: %s, boost: %llx, mode: %llx, boot completed: %s",
           platform, _gpu_path.c_str(),
-          _boost_support_int, _mode_support_int);
+          _boost_support_int, _mode_support_int,
+          _boot_complete?"true":"false");
 }
 
 static void sysfs_write(const char *path, const char *s) {
@@ -243,6 +247,10 @@ ndk::ScopedAStatus Power::isBoostSupported(Boost type, bool* _aidl_return) {
 }
 
 void Power::performanceBoost(bool on) {
+    if (!_boot_complete) {
+        ALOGI("RK performance_boost skiped during boot!");
+        return;
+    }
     ALOGV("RK performance_boost Entered!");
     sysfs_write(CPU_CLUST0_GOV_PATH, on?"performance":"interactive");
     sysfs_write(CPU_CLUST1_GOV_PATH, on?"performance":"interactive");
@@ -261,6 +269,10 @@ void Power::powerSave(bool on) {
 }
 
 void Power::interactive() {
+    if (!_boot_complete) {
+        ALOGI("RK interactive skiped during boot!");
+        return;
+    }
     ALOGV("RK interactive Entered!");
     sysfs_write(CPU_CLUST0_GOV_PATH, "interactive");
     sysfs_write(CPU_CLUST1_GOV_PATH, "interactive");
