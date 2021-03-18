@@ -28,7 +28,7 @@ namespace rockchip {
 
 void Power::getSupportedPlatform() {
     char platform[PROPERTY_VALUE_MAX] = {0};
-    property_get("ro.board.platform", platform, "");
+    //property_get("ro.board.platform", platform, "");
     if (_mode_support_int < 0) {
         //if (strncmp(platform, "rk3399", PROPERTY_VALUE_MAX) == 0) {
             _boost_support_int = 0x003F;
@@ -80,6 +80,7 @@ static void sysfs_write(const char *path, const char *s) {
 
 ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
     ALOGV("Power setMode: %d to: %s", static_cast<int32_t>(type), (enabled?"on":"off"));
+    getSupportedPlatform();
     switch (type) {
         case Mode::DOUBLE_TAP_TO_WAKE:
         break;
@@ -127,6 +128,7 @@ ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
 
 ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
     ALOGV("Power setBoost: %d, duration: %d", static_cast<int32_t>(type), durationMs);
+    getSupportedPlatform();
     switch (type) {
         // Touch screen
         case Boost::INTERACTION:
