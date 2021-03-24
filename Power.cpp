@@ -50,7 +50,7 @@ void Power::getSupportedPlatform() {
         }
     }
     if (_boot_complete <= 0) {
-        _boot_complete = property_get_bool("sys.boot_completed", 0);
+        _boot_complete = property_get_bool("vendor.boot_completed", 0);
     }
     ALOGV("[%s] gpu: %s, boost: %llx, mode: %llx, boot completed: %s",
           platform, _gpu_path.c_str(),
