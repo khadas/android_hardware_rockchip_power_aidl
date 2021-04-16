@@ -17,7 +17,7 @@
 #define DEV_FREQ_PATH "/sys/class/devfreq"
 #define CPU_CLUST0_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor"
 #define CPU_CLUST1_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_governor"
-#define DMC_GOV_PATH "/sys/class/devfreq/dmc/governor"
+#define DMC_GOV_PATH "/sys/class/devfreq/dmc/system_status"
 
 namespace aidl {
 namespace android {
@@ -257,7 +257,7 @@ void Power::performanceBoost(bool on) {
     sysfs_write(CPU_CLUST0_GOV_PATH, on?"performance":"interactive");
     sysfs_write(CPU_CLUST1_GOV_PATH, on?"performance":"interactive");
     sysfs_write((_gpu_path + "/governor").c_str(), on?"performance":"simple_ondemand");
-    sysfs_write(DMC_GOV_PATH, on?"performance":"dmc_ondemand");
+    sysfs_write(DMC_GOV_PATH, on?"p":"n");
 }
 
 void Power::powerSave(bool on) {
@@ -266,7 +266,7 @@ void Power::powerSave(bool on) {
     sysfs_write(CPU_CLUST0_GOV_PATH, on?"powersave":"interactive");
     sysfs_write(CPU_CLUST1_GOV_PATH, on?"powersave":"interactive");
     sysfs_write((_gpu_path + "/governor").c_str(), on?"powersave":"simple_ondemand");
-    sysfs_write(DMC_GOV_PATH, on?"powersave":"dmc_ondemand");
+    sysfs_write(DMC_GOV_PATH, on?"l":"L");
 #endif
 }
 
