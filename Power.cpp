@@ -26,10 +26,13 @@
 #define DEV_FREQ_PATH "/sys/class/devfreq"
 #define CPU_CLUST0_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor"
 #define CPU_CLUST1_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_governor"
+#define CPU_CLUST2_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_governor"
 #define CPU_CLUST0_SCAL_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq"
 #define CPU_CLUST0_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq"
 #define CPU_CLUST1_SCAL_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq"
 #define CPU_CLUST1_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq"
+#define CPU_CLUST2_SCAL_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq"
+#define CPU_CLUST2_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq"
 #define DMC_GOV_PATH "/sys/class/devfreq/dmc/system_status"
 
 static int is_inited = 0;
@@ -45,6 +48,8 @@ std::string cpu_clust0_min_freq = "";
 std::string cpu_clust0_max_freq = "";
 std::string cpu_clust1_min_freq = "";
 std::string cpu_clust1_max_freq = "";
+std::string cpu_clust2_min_freq = "";
+std::string cpu_clust2_max_freq = "";
 std::string gpu_min_freq = "";
 std::string gpu_max_freq = "";
 
@@ -59,12 +64,14 @@ void sysfs_read(std::string path, std::string *buf) {
 void Power::initPlatform() {
     if (is_inited) return;
 
-    if(DEBUG_EN) ALOGD("version 4.0\n");
+    if(DEBUG_EN) ALOGD("version 5.0\n");
 
     sysfs_read(CPU_CLUST0_SCAL_MAX_FREQ_PATH, &cpu_clust0_max_freq);
     sysfs_read(CPU_CLUST0_SCAL_MIN_FREQ_PATH, &cpu_clust0_min_freq);
     sysfs_read(CPU_CLUST1_SCAL_MIN_FREQ_PATH, &cpu_clust1_min_freq);
     sysfs_read(CPU_CLUST1_SCAL_MAX_FREQ_PATH, &cpu_clust1_max_freq);
+    sysfs_read(CPU_CLUST2_SCAL_MIN_FREQ_PATH, &cpu_clust2_min_freq);
+    sysfs_read(CPU_CLUST2_SCAL_MAX_FREQ_PATH, &cpu_clust2_max_freq);
     sysfs_read((_gpu_path + "/min_freq").c_str(), &gpu_min_freq);
     sysfs_read((_gpu_path + "/max_freq").c_str(), &gpu_max_freq);
 
@@ -319,6 +326,7 @@ void Power::performanceBoost(bool on) {
     ALOGV("RK performance_boost Entered!");
     sysfs_write(CPU_CLUST0_SCAL_MIN_FREQ_PATH, on?cpu_clust0_max_freq.c_str():cpu_clust0_min_freq.c_str());
     sysfs_write(CPU_CLUST1_SCAL_MIN_FREQ_PATH, on?cpu_clust1_max_freq.c_str():cpu_clust1_min_freq.c_str());
+    sysfs_write(CPU_CLUST2_SCAL_MIN_FREQ_PATH, on?cpu_clust2_max_freq.c_str():cpu_clust2_min_freq.c_str());
     sysfs_write((_gpu_path + "/min_freq").c_str(), on?gpu_max_freq.c_str():gpu_min_freq.c_str());
     sysfs_write(DMC_GOV_PATH, on?"p":"n");
 }
@@ -328,6 +336,7 @@ void Power::powerSave(bool on) {
 #ifdef ENABLE_POWER_SAVE
     sysfs_write(CPU_CLUST0_GOV_PATH, on?"powersave":"interactive");
     sysfs_write(CPU_CLUST1_GOV_PATH, on?"powersave":"interactive");
+    sysfs_write(CPU_CLUST2_GOV_PATH, on?"powersave":"interactive");
     sysfs_write((_gpu_path + "/governor").c_str(), on?"powersave":"simple_ondemand");
     sysfs_write(DMC_GOV_PATH, on?"l":"L");
 #else
