@@ -79,12 +79,11 @@ void Power::initPlatform() {
 }
 
 void Power::getSupportedPlatform() {
-    char platform[PROPERTY_VALUE_MAX] = {0};
     std::string name;
-    //property_get("ro.board.platform", platform, "");
     if (_mode_support_int < 0) {
-        _boost_support_int = 0x003F;
-        _mode_support_int = 0x3FFF;
+        _boost_support_int = property_get_int64("ro.vendor.power.boost_support", 0x003F);
+        // Disable power save by default.
+        _mode_support_int = property_get_int64("ro.vendor.power.mode_support", 0x7FFF & 0xDF9F);
     }
     if (_gpu_path == "") {
         std::unique_ptr<DIR, decltype(&closedir)>dir(opendir(DEV_FREQ_PATH), closedir);
@@ -104,8 +103,8 @@ void Power::getSupportedPlatform() {
     }
     if (_boot_complete <= 0) {
         _boot_complete = property_get_bool("vendor.boot_completed", 0);
-        ALOGV("[%s] gpu: %s, boost: %" PRId64", mode: %" PRId64", boot completed: %s",
-                platform, _gpu_path.c_str(),
+        ALOGV("Initial gpu: %s, boost: %" PRId64", mode: %" PRId64", boot completed: %s",
+                _gpu_path.c_str(),
                 _boost_support_int, _mode_support_int,
                 _boot_complete?"true":"false");
     }
@@ -165,9 +164,7 @@ ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
             powerSave(enabled);
         break;
         case Mode::DISPLAY_INACTIVE:
-#ifdef ENABLE_POWER_SAVE
             sysfs_write((_gpu_path + "/governor").c_str(), enabled?"powersave":"simple_ondemand");
-#endif
         break;
         case Mode::AUDIO_STREAMING_LOW_LATENCY:
         break;
@@ -333,15 +330,11 @@ void Power::performanceBoost(bool on) {
 
 void Power::powerSave(bool on) {
     ALOGV("RK powersave Entered!");
-#ifdef ENABLE_POWER_SAVE
     sysfs_write(CPU_CLUST0_GOV_PATH, on?"powersave":"interactive");
     sysfs_write(CPU_CLUST1_GOV_PATH, on?"powersave":"interactive");
     sysfs_write(CPU_CLUST2_GOV_PATH, on?"powersave":"interactive");
     sysfs_write((_gpu_path + "/governor").c_str(), on?"powersave":"simple_ondemand");
     sysfs_write(DMC_GOV_PATH, on?"l":"L");
-#else
-    (void *)on;
-#endif
 }
 
 void Power::interactive() {
