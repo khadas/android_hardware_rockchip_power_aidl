@@ -36,6 +36,7 @@
 #define DMC_GOV_PATH "/sys/class/devfreq/dmc/system_status"
 
 static int is_inited = 0;
+static int is_performance = 0;
 
 namespace aidl {
 namespace android {
@@ -320,12 +321,19 @@ void Power::performanceBoost(bool on) {
         ALOGI("RK performance_boost skiped during boot!");
         return;
     }
-    ALOGV("RK performance_boost Entered!");
-    sysfs_write(CPU_CLUST0_SCAL_MIN_FREQ_PATH, on?cpu_clust0_max_freq.c_str():cpu_clust0_min_freq.c_str());
-    sysfs_write(CPU_CLUST1_SCAL_MIN_FREQ_PATH, on?cpu_clust1_max_freq.c_str():cpu_clust1_min_freq.c_str());
-    sysfs_write(CPU_CLUST2_SCAL_MIN_FREQ_PATH, on?cpu_clust2_max_freq.c_str():cpu_clust2_min_freq.c_str());
-    sysfs_write((_gpu_path + "/min_freq").c_str(), on?gpu_max_freq.c_str():gpu_min_freq.c_str());
-    sysfs_write(DMC_GOV_PATH, on?"p":"n");
+
+    if (!on) is_performance = 0;
+
+    if (is_performance == 0) {
+        ALOGV("RK performance_boost Entered! on=%d",on);
+        sysfs_write(CPU_CLUST0_SCAL_MIN_FREQ_PATH, on?cpu_clust0_max_freq.c_str():cpu_clust0_min_freq.c_str());
+        sysfs_write(CPU_CLUST1_SCAL_MIN_FREQ_PATH, on?cpu_clust1_max_freq.c_str():cpu_clust1_min_freq.c_str());
+        sysfs_write(CPU_CLUST2_SCAL_MIN_FREQ_PATH, on?cpu_clust2_max_freq.c_str():cpu_clust2_min_freq.c_str());
+        sysfs_write((_gpu_path + "/min_freq").c_str(), on?gpu_max_freq.c_str():gpu_min_freq.c_str());
+        sysfs_write(DMC_GOV_PATH, on?"p":"n");
+
+        if (on) is_performance = 1;
+    }
 }
 
 void Power::powerSave(bool on) {
