@@ -27,11 +27,15 @@
 #define CPU_CLUST0_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor"
 #define CPU_CLUST1_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_governor"
 #define CPU_CLUST2_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_governor"
-#define CPU_CLUST0_SCAL_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq"
-#define CPU_CLUST0_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq"
-#define CPU_CLUST1_SCAL_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq"
-#define CPU_CLUST1_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq"
-#define CPU_CLUST2_SCAL_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq"
+#define CPU_CLUST0_INFO_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_max_freq"
+#define CPU_CLUST0_INFO_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq"
+#define CPU_CLUST1_INFO_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_max_freq"
+#define CPU_CLUST1_INFO_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq"
+#define CPU_CLUST2_INFO_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_max_freq"
+#define CPU_CLUST2_INFO_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq"
+
+#define CPU_CLUST0_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq"
+#define CPU_CLUST1_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq"
 #define CPU_CLUST2_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq"
 #define DMC_GOV_PATH "/sys/class/devfreq/dmc/system_status"
 
@@ -67,12 +71,12 @@ void Power::initPlatform() {
 
     if(DEBUG_EN) ALOGD("version 5.0\n");
 
-    sysfs_read(CPU_CLUST0_SCAL_MAX_FREQ_PATH, &cpu_clust0_max_freq);
-    sysfs_read(CPU_CLUST0_SCAL_MIN_FREQ_PATH, &cpu_clust0_min_freq);
-    sysfs_read(CPU_CLUST1_SCAL_MIN_FREQ_PATH, &cpu_clust1_min_freq);
-    sysfs_read(CPU_CLUST1_SCAL_MAX_FREQ_PATH, &cpu_clust1_max_freq);
-    sysfs_read(CPU_CLUST2_SCAL_MIN_FREQ_PATH, &cpu_clust2_min_freq);
-    sysfs_read(CPU_CLUST2_SCAL_MAX_FREQ_PATH, &cpu_clust2_max_freq);
+    sysfs_read(CPU_CLUST0_INFO_MAX_FREQ_PATH, &cpu_clust0_max_freq);
+    sysfs_read(CPU_CLUST0_INFO_MIN_FREQ_PATH, &cpu_clust0_min_freq);
+    sysfs_read(CPU_CLUST1_INFO_MIN_FREQ_PATH, &cpu_clust1_min_freq);
+    sysfs_read(CPU_CLUST1_INFO_MAX_FREQ_PATH, &cpu_clust1_max_freq);
+    sysfs_read(CPU_CLUST2_INFO_MIN_FREQ_PATH, &cpu_clust2_min_freq);
+    sysfs_read(CPU_CLUST2_INFO_MAX_FREQ_PATH, &cpu_clust2_max_freq);
     sysfs_read((_gpu_path + "/min_freq").c_str(), &gpu_min_freq);
     sysfs_read((_gpu_path + "/max_freq").c_str(), &gpu_max_freq);
 
