@@ -12,7 +12,7 @@ cc_binary {
         "libcutils",
         "liblog",
         "libbinder_ndk",
-        "android.hardware.power-V2-ndk_platform",
+        "android.hardware.power-V2-ndk",
     ],
     srcs: [
         "main.cpp",
