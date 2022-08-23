@@ -34,8 +34,8 @@
 #define CPU_CLUST2_INFO_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_max_freq"
 #define CPU_CLUST2_INFO_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq"
 
-#define CPU_CLUST0_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq"
-#define CPU_CLUST1_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq"
+#define CPU_CLUST0_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq"
+#define CPU_CLUST1_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq"
 #define CPU_CLUST2_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq"
 #define DMC_GOV_PATH "/sys/class/devfreq/dmc/system_status"
 
