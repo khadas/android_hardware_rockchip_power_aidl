@@ -16,6 +16,37 @@ namespace rockchip {
 
 using aidl::android::hardware::power::Boost;
 
+enum class ClusterType {
+    CPU,
+    GPU,
+    DDR,
+    NPU,
+};
+
+class ClusterInfo {
+public:
+    ClusterInfo(const ClusterType type, const std::string& clust);
+
+    std::string toString();
+    void setMinFreq(const std::string& freq);
+    void setMaxFreq(const std::string& freq);
+    void setPerformance(bool on);
+    void setPowerSave(bool on);
+    void setInteractive();
+    void setGov(const std::string& governor);
+    ClusterType getType() {
+        return _type;
+    }
+private:
+    ClusterType _type;
+    std::string _minFreqPath;
+    std::string _maxFreqPath;
+    std::string _govPath;
+    std::string _minFreq;
+    std::string _maxFreq;
+    std::string _govDefault;
+};
+
 class Power : public BnPower {
     ndk::ScopedAStatus setMode(Mode type, bool enabled) override;
     ndk::ScopedAStatus isModeSupported(Mode type, bool* _aidl_return) override;
@@ -31,7 +62,7 @@ private:
     int64_t _boost_support_int = -1;
     int64_t _mode_support_int = -1;
     int8_t _boot_complete = -1;
-    std::string _gpu_path = "";
+    std::vector<ClusterInfo> clusterList;
 
     void getSupportedPlatform();
     void initPlatform();

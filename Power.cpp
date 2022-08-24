@@ -19,28 +19,16 @@
 #include <android-base/properties.h>
 #include <android-base/stringprintf.h>
 #include <android-base/strings.h>
-
-#define DEBUG_EN 1
+#define DEBUG_EN 0
 
 #define BUFFER_LENGTH 64
 #define DEV_FREQ_PATH "/sys/class/devfreq"
-#define CPU_CLUST0_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor"
-#define CPU_CLUST1_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_governor"
-#define CPU_CLUST2_GOV_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_governor"
-#define CPU_CLUST0_INFO_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_max_freq"
-#define CPU_CLUST0_INFO_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq"
-#define CPU_CLUST1_INFO_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_max_freq"
-#define CPU_CLUST1_INFO_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq"
-#define CPU_CLUST2_INFO_MAX_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_max_freq"
-#define CPU_CLUST2_INFO_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq"
-
-#define CPU_CLUST0_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq"
-#define CPU_CLUST1_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq"
-#define CPU_CLUST2_SCAL_MIN_FREQ_PATH "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq"
-#define DMC_GOV_PATH "/sys/class/devfreq/dmc/system_status"
+#define CPU_CLUST_INFO_PATH "/sys/devices/system/cpu/cpufreq"
 
 static int is_inited = 0;
 static int is_performance = 0;
+
+using ::android::base::StringPrintf;
 
 namespace aidl {
 namespace android {
@@ -49,77 +37,25 @@ namespace power {
 namespace impl {
 namespace rockchip {
 
-std::string cpu_clust0_min_freq = "";
-std::string cpu_clust0_max_freq = "";
-std::string cpu_clust1_min_freq = "";
-std::string cpu_clust1_max_freq = "";
-std::string cpu_clust2_min_freq = "";
-std::string cpu_clust2_max_freq = "";
-std::string gpu_min_freq = "";
-std::string gpu_max_freq = "";
+#define PW_LOG_DEBUG(...) if (DEBUG_EN) ALOGD(__VA_ARGS__)
 
 void sysfs_read(std::string path, std::string *buf) {
     if (!::android::base::ReadFileToString(path, buf)) {
-        ALOGE("Error to open %s\n", path.c_str());
-    } else {
-        if(DEBUG_EN) ALOGI("read from %s value %s\n", path.c_str(), buf->c_str());
-    }
-}
-
-void Power::initPlatform() {
-    if (is_inited) return;
-
-    if(DEBUG_EN) ALOGD("version 5.0\n");
-
-    sysfs_read(CPU_CLUST0_INFO_MAX_FREQ_PATH, &cpu_clust0_max_freq);
-    sysfs_read(CPU_CLUST0_INFO_MIN_FREQ_PATH, &cpu_clust0_min_freq);
-    sysfs_read(CPU_CLUST1_INFO_MIN_FREQ_PATH, &cpu_clust1_min_freq);
-    sysfs_read(CPU_CLUST1_INFO_MAX_FREQ_PATH, &cpu_clust1_max_freq);
-    sysfs_read(CPU_CLUST2_INFO_MIN_FREQ_PATH, &cpu_clust2_min_freq);
-    sysfs_read(CPU_CLUST2_INFO_MAX_FREQ_PATH, &cpu_clust2_max_freq);
-    sysfs_read((_gpu_path + "/min_freq").c_str(), &gpu_min_freq);
-    sysfs_read((_gpu_path + "/max_freq").c_str(), &gpu_max_freq);
-
-    is_inited = 1;
-}
-
-void Power::getSupportedPlatform() {
-    std::string name;
-    if (_mode_support_int < 0) {
-        _boost_support_int = property_get_int64("ro.vendor.power.boost_support", 0x003F);
-        // Disable power save by default.
-        _mode_support_int = property_get_int64("ro.vendor.power.mode_support", 0x7FFF & 0xDF9F);
-    }
-    if (_gpu_path == "") {
-        std::unique_ptr<DIR, decltype(&closedir)>dir(opendir(DEV_FREQ_PATH), closedir);
-        if (!dir) return;
-        dirent* dp;
-        while ((dp = readdir(dir.get())) != nullptr) {
-            name = dp->d_name;
-            if (strstr(name.c_str(),"gpu") == NULL)
-                continue;
-            else {
-                std::string prefix(DEV_FREQ_PATH);
-                std::string gpu(dp->d_name);
-                _gpu_path += prefix + "/" + gpu;
-                break;
-            }
+        ALOGE("Error to open %s", path.c_str());
+        std::string realpath;
+        if (!::android::base::Realpath(path, &realpath)) {
+            ALOGE("Realpath is not exist!");
+        } else {
+            ALOGI("Trying read from realpath: %s", realpath.c_str());
+            sysfs_read(realpath, buf);
         }
+    } else {
+        PW_LOG_DEBUG("read from %s value %s", path.c_str(), buf->c_str());
     }
-    if (_boot_complete <= 0) {
-        _boot_complete = property_get_bool("vendor.boot_completed", 0);
-        ALOGV("Initial gpu: %s, boost: %" PRId64", mode: %" PRId64", boot completed: %s",
-                _gpu_path.c_str(),
-                _boost_support_int, _mode_support_int,
-                _boot_complete?"true":"false");
-    }
-    initPlatform();
 }
 
 static void sysfs_write(const char *path, const char *s) {
-    ALOGV("path: %s, cpu min: %s, cpu max: %s, value: %s",
-           path, cpu_clust0_min_freq.c_str(),
-           cpu_clust0_max_freq.c_str(), s);
+    PW_LOG_DEBUG("write %s %s", path, s);
 
     if (access(path, F_OK) < 0) return;
 
@@ -141,8 +77,167 @@ static void sysfs_write(const char *path, const char *s) {
     close(fd);
 }
 
+ClusterInfo::ClusterInfo(const ClusterType type, const std::string& clust) : _type(type) {
+    std::string minPath, maxPath;
+    switch (type) {
+        case ClusterType::CPU:
+            _minFreqPath = StringPrintf("%s/%s/scaling_min_freq",
+                                        CPU_CLUST_INFO_PATH, clust.c_str());
+            _maxFreqPath = StringPrintf("%s/%s/scaling_max_freq",
+                                        CPU_CLUST_INFO_PATH, clust.c_str());
+            _govPath = StringPrintf("%s/%s/scaling_governor",
+                                    CPU_CLUST_INFO_PATH, clust.c_str());
+            minPath = StringPrintf("%s/%s/cpuinfo_min_freq",
+                                   CPU_CLUST_INFO_PATH, clust.c_str());
+            maxPath = StringPrintf("%s/%s/cpuinfo_max_freq",
+                                   CPU_CLUST_INFO_PATH, clust.c_str());
+            break;
+        case ClusterType::GPU:
+            _minFreqPath = StringPrintf("%s/min_freq", clust.c_str());
+            _maxFreqPath = StringPrintf("%s/max_freq", clust.c_str());
+            _govPath = StringPrintf("%s/governor", clust.c_str());
+            minPath = _minFreqPath;
+            maxPath = _maxFreqPath;
+            break;
+        case ClusterType::DDR:
+            _minFreqPath = StringPrintf("%s/min_freq", clust.c_str());
+            _maxFreqPath = StringPrintf("%s/max_freq", clust.c_str());
+            _govPath = StringPrintf("%s/system_status", clust.c_str());
+            minPath = _minFreqPath;
+            maxPath = _maxFreqPath;
+            break;
+        default:
+            break;
+    }
+    if (minPath == "" || maxPath == "") {
+        ALOGW("Failed to register, minPath/maxPath is null!");
+        return;
+    }
+    sysfs_read(minPath, &_minFreq);
+    sysfs_read(maxPath, &_maxFreq);
+    sysfs_read(_govPath, &_govDefault);
+    ALOGI("Registered: %s", toString().c_str());
+}
+
+std::string ClusterInfo::toString() {
+    std::string type;
+    switch (_type) {
+        case ClusterType::CPU:
+            type = "CPU";
+            break;
+        case ClusterType::GPU:
+            type = "GPU";
+            break;
+        case ClusterType::DDR:
+            type = "DDR";
+            break;
+        default:
+            type = "unknown";
+            break;
+    }
+    return StringPrintf("%s \nmin: %smax: %s",
+                        type.c_str(), _minFreq.c_str(), _maxFreq.c_str());
+}
+
+void ClusterInfo::setMinFreq(const std::string& freq) {
+    sysfs_write(_minFreqPath.c_str(), freq.c_str());
+}
+
+void ClusterInfo::setMaxFreq(const std::string& freq) {
+    sysfs_write(_maxFreqPath.c_str(), freq.c_str());
+}
+
+void ClusterInfo::setPerformance(bool on) {
+    if (on) {
+        setMinFreq(_maxFreq);
+    } else {
+        setMinFreq(_minFreq);
+    }
+}
+
+void ClusterInfo::setGov(const std::string& governor) {
+    sysfs_write(_govPath.c_str(), governor.c_str());
+}
+
+void ClusterInfo::setPowerSave(bool on) {
+    switch (getType()) {
+        case ClusterType::CPU:
+            [[fallthrough]];
+        case ClusterType::GPU:
+            setGov(on ? "powersave" : _govDefault);
+            break;
+        case ClusterType::DDR:
+            setGov(on ? "l" : "L");
+            break;
+        default:
+            break;
+    }
+}
+
+void ClusterInfo::setInteractive() {
+    switch (getType()) {
+        case ClusterType::CPU:
+            setGov(_govDefault);
+            break;
+        default:
+            break;
+    }
+}
+
+void Power::initPlatform() {
+    if (is_inited) return;
+
+    ALOGI("version 6.0\n");
+    auto findWithPath = [&](const char *path, ClusterType type) {
+        std::unique_ptr<DIR, decltype(&closedir)>dir(opendir(path), closedir);
+        if (!dir) return;
+        std::string name;
+        dirent* dp;
+        while ((dp = readdir(dir.get())) != nullptr) {
+            if (type == ClusterType::GPU) {
+                name = dp->d_name;
+                if (strstr(name.c_str(), "gpu") != NULL) {
+                    ClusterInfo gpu = ClusterInfo(ClusterType::GPU,
+                                                  StringPrintf("%s/%s", DEV_FREQ_PATH, dp->d_name));
+                    clusterList.push_back(gpu);
+                    break;
+                }
+            } else if (type == ClusterType::CPU) {
+                if (dp->d_name[0] == '.') {
+                    continue;
+                }
+                ClusterInfo cpu = ClusterInfo(ClusterType::CPU, dp->d_name);
+                clusterList.push_back(cpu);
+            }
+        }
+    };
+
+    findWithPath(CPU_CLUST_INFO_PATH, ClusterType::CPU);
+    findWithPath(DEV_FREQ_PATH, ClusterType::GPU);
+
+    ClusterInfo ddr = ClusterInfo(ClusterType::DDR, "/sys/class/devfreq/dmc");
+    clusterList.push_back(ddr);
+    is_inited = 1;
+}
+
+void Power::getSupportedPlatform() {
+    if (_mode_support_int < 0) {
+        _boost_support_int = property_get_int64("ro.vendor.power.boost_support", 0x003F);
+        // Disable power save by default.
+        _mode_support_int = property_get_int64("ro.vendor.power.mode_support", 0x7FFF & 0xDF9F);
+        ALOGI("Initial with boost: %" PRId64", mode: %" PRId64,
+              _boost_support_int, _mode_support_int);
+    }
+
+    if (_boot_complete <= 0) {
+        _boot_complete = property_get_bool("vendor.boot_completed", 0);
+        PW_LOG_DEBUG("Boot complete: %s", _boot_complete?"true":"false");
+    }
+    initPlatform();
+}
+
 ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
-    ALOGV("Power setMode: %d to: %s", static_cast<int32_t>(type), (enabled?"on":"off"));
+    PW_LOG_DEBUG("Power setMode: %d to: %s", static_cast<int32_t>(type), (enabled?"on":"off"));
     getSupportedPlatform();
     switch (type) {
         case Mode::DOUBLE_TAP_TO_WAKE:
@@ -169,7 +264,11 @@ ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
             powerSave(enabled);
         break;
         case Mode::DISPLAY_INACTIVE:
-            sysfs_write((_gpu_path + "/governor").c_str(), enabled?"powersave":"simple_ondemand");
+            for (auto gpu : clusterList) {
+                if (gpu.getType() == ClusterType::GPU) {
+                    gpu.setPowerSave(enabled);
+                }
+            }
         break;
         case Mode::AUDIO_STREAMING_LOW_LATENCY:
         break;
@@ -188,7 +287,7 @@ ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
 }
 
 ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
-    ALOGV("Power setBoost: %d, duration: %d", static_cast<int32_t>(type), durationMs);
+    PW_LOG_DEBUG("Power setBoost: %d, duration: %d", static_cast<int32_t>(type), durationMs);
     getSupportedPlatform();
     switch (type) {
         // Touch screen
@@ -211,7 +310,7 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
  * CAMERA_STREAMING_SECURE, CAMERA_STREAMING_LOW,   CAMERA_STREAMING_MID,   CAMERA_STREAMING_HIGH
  */
 ndk::ScopedAStatus Power::isModeSupported(Mode type, bool* _aidl_return) {
-    ALOGV("Power isModeSupported: %d", static_cast<int32_t>(type));
+    PW_LOG_DEBUG("Power isModeSupported: %d", static_cast<int32_t>(type));
     getSupportedPlatform();
     switch (type) {
         case Mode::DOUBLE_TAP_TO_WAKE:
@@ -278,7 +377,7 @@ ndk::ScopedAStatus Power::isModeSupported(Mode type, bool* _aidl_return) {
  * ...
  */
 ndk::ScopedAStatus Power::isBoostSupported(Boost type, bool* _aidl_return) {
-    ALOGV("Power isBoostSupported: %d", static_cast<int32_t>(type));
+    PW_LOG_DEBUG("Power isBoostSupported: %d", static_cast<int32_t>(type));
     getSupportedPlatform();
     switch (type) {
         // Touch screen
@@ -322,41 +421,37 @@ ndk::ScopedAStatus Power::getHintSessionPreferredRate(int64_t* outNanoseconds) {
 
 void Power::performanceBoost(bool on) {
     if (!_boot_complete) {
-        ALOGI("RK performance_boost skiped during boot!");
+        PW_LOG_DEBUG("RK performance_boost skiped during boot!");
         return;
     }
 
     if (!on) is_performance = 0;
 
     if (is_performance == 0) {
-        ALOGV("RK performance_boost Entered! on=%d",on);
-        sysfs_write(CPU_CLUST0_SCAL_MIN_FREQ_PATH, on?cpu_clust0_max_freq.c_str():cpu_clust0_min_freq.c_str());
-        sysfs_write(CPU_CLUST1_SCAL_MIN_FREQ_PATH, on?cpu_clust1_max_freq.c_str():cpu_clust1_min_freq.c_str());
-        sysfs_write(CPU_CLUST2_SCAL_MIN_FREQ_PATH, on?cpu_clust2_max_freq.c_str():cpu_clust2_min_freq.c_str());
-        sysfs_write((_gpu_path + "/min_freq").c_str(), on?gpu_max_freq.c_str():gpu_min_freq.c_str());
-        sysfs_write(DMC_GOV_PATH, on?"p":"n");
-
+        PW_LOG_DEBUG("RK performance_boost Entered! on=%d",on);
+        for (auto cluster : clusterList) {
+            cluster.setPerformance(on);
+        }
         if (on) is_performance = 1;
     }
 }
 
 void Power::powerSave(bool on) {
-    ALOGV("RK powersave Entered!");
-    sysfs_write(CPU_CLUST0_GOV_PATH, on?"powersave":"interactive");
-    sysfs_write(CPU_CLUST1_GOV_PATH, on?"powersave":"interactive");
-    sysfs_write(CPU_CLUST2_GOV_PATH, on?"powersave":"interactive");
-    sysfs_write((_gpu_path + "/governor").c_str(), on?"powersave":"simple_ondemand");
-    sysfs_write(DMC_GOV_PATH, on?"l":"L");
+    PW_LOG_DEBUG("RK powersave Entered!");
+    for (auto cluster : clusterList) {
+        cluster.setPowerSave(on);
+    }
 }
 
 void Power::interactive() {
     if (!_boot_complete) {
-        ALOGI("RK interactive skiped during boot!");
+        PW_LOG_DEBUG("RK interactive skiped during boot!");
         return;
     }
-    ALOGV("RK interactive Entered!");
-    sysfs_write(CPU_CLUST0_GOV_PATH, "interactive");
-    sysfs_write(CPU_CLUST1_GOV_PATH, "interactive");
+    PW_LOG_DEBUG("RK interactive Entered!");
+    for (auto cluster : clusterList) {
+        cluster.setInteractive();
+    }
 }
 
 }  // namespace rockchip
