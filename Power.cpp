@@ -185,9 +185,10 @@ void ClusterInfo::setInteractive() {
 }
 
 void Power::initPlatform() {
-    if (is_inited) return;
 
-    ALOGI("version 6.0\n");
+    if (is_inited || (_boot_complete <= 0)) return;
+
+    ALOGI("version 12.0\n");
     auto findWithPath = [&](const char *path, ClusterType type) {
         std::unique_ptr<DIR, decltype(&closedir)>dir(opendir(path), closedir);
         if (!dir) return;
